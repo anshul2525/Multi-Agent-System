@@ -7,10 +7,16 @@ from tools import scrape_urls, web_search
 
 load_dotenv()
 
+groq_api_key = None
+try:
+    groq_api_key = st.secrets["GROQ_API_KEY"]
+except Exception:
+    groq_api_key = os.getenv("GROQ_API_KEY")
+
 llm = ChatGroq(
     model="llama-3.3-70b-versatile",
     temperature=0,
-    api_key=os.getenv("GROQ_API_KEY")
+    api_key=groq_api_key,
 )
 
 # 1st agent: Search Agent
