@@ -15,8 +15,20 @@ Run with:
 
 import contextlib
 import io
+import os
 import traceback
 import streamlit as st
+
+# --------------------------------------------------------------------------
+# Inject Streamlit Secrets into OS Environment BEFORE importing pipeline
+# --------------------------------------------------------------------------
+try:
+    if hasattr(st, "secrets"):
+        for key, value in st.secrets.items():
+            if isinstance(value, str):
+                os.environ[key] = value
+except Exception:
+    pass
 
 from pipeline import run_research_pipeline
 
@@ -45,7 +57,6 @@ def generate_simple_pdf(title: str, report: str, feedback: str) -> bytes | None:
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
     
-    # Calculate available printable width
     effective_width = pdf.w - pdf.l_margin - pdf.r_margin
 
     # Title
@@ -61,16 +72,15 @@ def generate_simple_pdf(title: str, report: str, feedback: str) -> bytes | None:
     for raw_line in full_text.split("\n"):
         clean_line = raw_line.encode("latin-1", "replace").decode("latin-1")
         
-        # Collapse markdown table divider rows (e.g., |---|---|)
+        # Collapse markdown table divider rows
         if set(clean_line.strip()).issubset({"-", "|", " "}) and len(clean_line.strip()) > 3:
             clean_line = "-" * 40
             
-        # Break up any continuous word/string that exceeds 75 characters without spaces
+        # Break up any continuous string exceeding 75 characters
         words = clean_line.split(" ")
         formatted_words = []
         for word in words:
             if len(word) > 75:
-                # Chunk oversized tokens/URLs
                 chunked = [word[i:i+75] for i in range(0, len(word), 75)]
                 formatted_words.append(" ".join(chunked))
             else:
@@ -155,7 +165,6 @@ if run_clicked:
     try:
         status_box.write("Step 1 — Search agent gathering sources via Tavily...")
         
-        # Pipeline prints to stdout via print(); redirect to log_buffer
         with contextlib.redirect_stdout(log_buffer):
             result = run_research_pipeline(topic.strip())
 
@@ -198,7 +207,6 @@ if state:
     feedback_text = str(state.get("feedback", ""))
     sanitized_name = st.session_state.last_topic.replace(" ", "_").lower()
 
-    # Complete Dossier Format
     combined_dossier = (
         f"# Research Dossier: {st.session_state.last_topic}\n\n"
         f"{report_text}\n\n"
