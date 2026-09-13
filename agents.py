@@ -8,7 +8,7 @@ from tools import scrape_urls, web_search
 load_dotenv()
 
 llm = ChatGroq(
-    model="openai/gpt-oss-120b",
+    model="llama-3.3-70b-versatile",
     temperature=0,
 )
 
