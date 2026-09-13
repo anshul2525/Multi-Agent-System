@@ -10,6 +10,7 @@ load_dotenv()
 llm = ChatGroq(
     model="llama-3.3-70b-versatile",
     temperature=0,
+    api_key=os.getenv("GROQ_API_KEY")
 )
 
 # 1st agent: Search Agent
