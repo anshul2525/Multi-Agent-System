@@ -38,7 +38,7 @@ def scrape_urls(urls: list[str]) -> str:
                 tag.decompose()
             clean_text = " ".join(soup.stripped_strings)
             if len(clean_text) > 200:
-                return f"Source URL: {clean_url}\n\n{clean_text[:3000]}"
+                return f"Source URL: {clean_url}\n\n{clean_text[:1500]}"
         except Exception:
             continue
     return "Could not extract content from the provided URLs."
