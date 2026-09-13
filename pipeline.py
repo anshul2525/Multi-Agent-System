@@ -21,7 +21,7 @@ def _wait_seconds_from_error(exc: Exception, default: float = 15.0) -> float:
     return default
 
 
-def _invoke_with_retry(fn, *args, max_retries: int = 4, **kwargs):
+def _invoke_with_retry(fn, *args, max_retries: int = 6, **kwargs):
     """Call fn(*args, **kwargs), automatically waiting and retrying on Groq
     rate-limit (429) errors, using the wait time Groq itself reports."""
     for attempt in range(1, max_retries + 1):
@@ -30,7 +30,7 @@ def _invoke_with_retry(fn, *args, max_retries: int = 4, **kwargs):
         except RateLimitError as e:
             if attempt == max_retries:
                 raise
-            wait = _wait_seconds_from_error(e) + 1.0  # small safety buffer
+            wait = _wait_seconds_from_error(e) + 3.0  # safety buffer
             print(
                 f"Rate limited by Groq (attempt {attempt}/{max_retries}). "
                 f"Waiting {wait:.1f}s before retrying..."
@@ -83,8 +83,8 @@ def run_research_pipeline(topic: str) -> dict:
     print("=" * 50)
 
     research_combined = (
-        f"SEARCH RESULTS:\n{state['search_results']}\n\n"
-        f"DETAILED SCRAPED CONTENT:\n{state['scraped_content']}"
+        f"SEARCH RESULTS:\n{state['search_results'][:1500]}\n\n"
+        f"DETAILED SCRAPED CONTENT:\n{state['scraped_content'][:2000]}"
     )
 
     writer_output = _invoke_with_retry(
