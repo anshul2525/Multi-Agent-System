@@ -22,13 +22,29 @@ import streamlit as st
 # --------------------------------------------------------------------------
 # Inject Streamlit Secrets into OS Environment BEFORE importing pipeline
 # --------------------------------------------------------------------------
+_secrets_error = None
+_secrets_seen = []
 try:
-    if hasattr(st, "secrets"):
-        for key, value in st.secrets.items():
-            if isinstance(value, str):
-                os.environ[key] = value
-except Exception:
-    pass
+    for key, value in st.secrets.items():
+        _secrets_seen.append(key)
+        if isinstance(value, str):
+            os.environ[key] = value
+except Exception as e:
+    _secrets_error = str(e)
+
+# Surface secrets-loading problems immediately instead of failing later
+# inside agents.py with a confusing GroqError/NameError.
+if _secrets_error:
+    st.error(f"Could not read st.secrets: {_secrets_error}")
+    st.stop()
+if "GROQ_API_KEY" not in os.environ:
+    st.error(
+        "GROQ_API_KEY is missing from Streamlit secrets. "
+        f"Keys currently visible to this app: {_secrets_seen or 'none'}. "
+        "Go to Manage app -> Settings -> Secrets, add GROQ_API_KEY, save, "
+        "and fully reboot the app."
+    )
+    st.stop()
 
 from pipeline import run_research_pipeline
 
