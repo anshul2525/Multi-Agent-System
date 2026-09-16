@@ -7,24 +7,41 @@ from tavily import TavilyClient
 
 load_dotenv()
 
-tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+
+def _get_tavily_client() -> TavilyClient:
+    api_key = os.getenv("TAVILY_API_KEY")
+    if not api_key:
+        raise ValueError("TAVILY_API_KEY environment variable is missing.")
+    return TavilyClient(api_key=api_key)
+
 
 @tool
 def web_search(query: str) -> str:
     """Search the web for recent and reliable information on a topic. Returns Titles, URLs and snippets."""
-    results = tavily.search(query=query, max_results=5)
-    out = []
-    for r in results.get('results', []):
-        out.append(
-            f"Title: {r['title']}\nURL: {r['url']}\nSnippet: {r['content'][:300]}\n"
-        )
-    return "\n----\n".join(out)
+    try:
+        tavily = _get_tavily_client()
+        results = tavily.search(query=query, max_results=5)
+        out = []
+        for r in results.get("results", []):
+            out.append(
+                f"Title: {r.get('title', 'N/A')}\n"
+                f"URL: {r.get('url', '')}\n"
+                f"Snippet: {r.get('content', '')[:300]}\n"
+            )
+        return "\n----\n".join(out) if out else "No relevant search results found."
+    except Exception as e:
+        return f"Error executing web search: {e}"
+
 
 @tool
 def scrape_urls(urls: list[str]) -> str:
     """Attempt to scrape candidate URLs sequentially until one returns clean text content."""
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        )
     }
     for url in urls:
         clean_url = url.strip()
