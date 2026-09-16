@@ -18,11 +18,7 @@
 
 ---
 
-<img src="assets/dashboard_preview.png" alt="Multi-Agent Research System Dashboard" width="900" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.35);"/>
-
 </div>
-
----
 
 ## 📑 Table of Contents
 
