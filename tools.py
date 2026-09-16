@@ -9,9 +9,9 @@ load_dotenv()
 
 
 def _get_tavily_client() -> TavilyClient:
-    api_key = os.getenv("TAVILY_API_KEY").strip()
+    api_key = os.getenv("TAVILY_API_KEY", "").strip()
     if not api_key:
-        raise ValueError("TAVILY_API_KEY environment variable is missing.")
+        raise ValueError("TAVILY_API_KEY environment variable is missing or empty.")
     return TavilyClient(api_key=api_key)
 
 
@@ -20,14 +20,14 @@ def web_search(query: str) -> str:
     """Search the web for recent and reliable information on a topic. Returns Titles, URLs and snippets."""
     try:
         tavily = _get_tavily_client()
-        results = tavily.search(query=query, max_results=5)
+        # Limit to 3 results and 180 chars to conserve Groq TPM quota
+        results = tavily.search(query=query.strip(), max_results=3)
         out = []
         for r in results.get("results", []):
-            out.append(
-                f"Title: {r.get('title', 'N/A')}\n"
-                f"URL: {r.get('url', '')}\n"
-                f"Snippet: {r.get('content', '')[:300]}\n"
-            )
+            title = r.get("title", "N/A").strip()
+            url = r.get("url", "").strip()
+            snippet = r.get("content", "")[:180].strip()
+            out.append(f"Title: {title}\nURL: {url}\nSnippet: {snippet}\n")
         return "\n----\n".join(out) if out else "No relevant search results found."
     except Exception as e:
         return f"Error executing web search: {e}"
@@ -44,7 +44,7 @@ def scrape_urls(urls: list[str]) -> str:
         )
     }
     for url in urls:
-        clean_url = url.strip()
+        clean_url = str(url).strip()
         if not clean_url.startswith(("http://", "https://")):
             continue
         try:
@@ -54,8 +54,9 @@ def scrape_urls(urls: list[str]) -> str:
             for tag in soup(["script", "style", "nav", "footer", "header", "noscript"]):
                 tag.decompose()
             clean_text = " ".join(soup.stripped_strings)
-            if len(clean_text) > 200:
-                return f"Source URL: {clean_url}\n\n{clean_text[:1500]}"
+            # Capped at 800 chars to avoid TPM spikes
+            if len(clean_text) > 150:
+                return f"Source URL: {clean_url}\n\n{clean_text[:800]}"
         except Exception:
             continue
     return "Could not extract content from the provided URLs."
