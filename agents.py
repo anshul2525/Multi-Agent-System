@@ -5,7 +5,7 @@ from langchain.agents import create_agent
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
-from tools import scrape_urls, web_search
+from tools import deep_scrape_urls, deep_web_search, scrape_urls, web_search
 
 load_dotenv()
 
@@ -14,94 +14,114 @@ model_name = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b").strip()
 
 llm = ChatGroq(
     model=model_name,
-    temperature=0,
+    temperature=0.1,
     api_key=groq_api_key,
     max_retries=0,
 )
 
-# 1st agent: Search Agent (with strict single-turn termination)
-def build_search_agent():
+# --- Agent Builders (Standard & Deep) ---
+
+def build_search_agent(deep: bool = False):
+    tool = deep_web_search if deep else web_search
+    tool_name = "deep_web_search" if deep else "web_search"
     return create_agent(
         model=llm,
-        tools=[web_search],
+        tools=[tool],
         system_prompt=(
-            "You are a dedicated search assistant. Follow this EXACT 2-step protocol:\n"
-            "Step 1: Call web_search exactly once using the user topic.\n"
-            "Step 2: Once web_search returns results, DO NOT invoke web_search or any other tool again under any circumstances.\n"
-            "Immediately write a final text response containing the titles, URLs, and snippets, and STOP."
+            f"You are a search assistant. Follow this EXACT 2-step protocol:\n"
+            f"1. Call {tool_name} exactly once with the search topic.\n"
+            f"2. Once {tool_name} returns, DO NOT call any tool again under any circumstances.\n"
+            f"Immediately write your final response listing the discovered sources and STOP."
         ),
     )
 
-# 2nd agent: Reader Agent (with strict single-turn termination)
-def build_reader_agent():
+
+def build_reader_agent(deep: bool = False):
+    tool = deep_scrape_urls if deep else scrape_urls
+    tool_name = "deep_scrape_urls" if deep else "scrape_urls"
     return create_agent(
         model=llm,
-        tools=[scrape_urls],
+        tools=[tool],
         system_prompt=(
-            "You are a research reader assistant. Follow this EXACT 2-step protocol:\n"
-            "Step 1: Call scrape_urls exactly once with 2 candidate URLs from the search results.\n"
-            "Step 2: Once scraped content is returned, DO NOT invoke scrape_urls or any other tool again under any circumstances.\n"
-            "Immediately write a final 2-paragraph summary of the scraped content and STOP."
+            f"You are a research reader. Follow this EXACT 2-step protocol:\n"
+            f"1. Call {tool_name} exactly once with candidate URLs from search results.\n"
+            f"2. Once scraped text is returned, DO NOT call any tool again under any circumstances.\n"
+            f"Immediately provide your summary of the findings and STOP."
         ),
     )
 
-# 3rd component: Writer Chain
-writer_prompt = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        "You are an expert technical writer. You must generate complete, concise, and structured reports without stopping mid-sentence.",
-    ),
-    (
-        "human",
-        """Write a concise research report on the topic below.
 
-Topic: {topic}
+# --- Writer Chains ---
 
-Research Gathered:
+# Standard Writer (350-450 words)
+writer_prompt_standard = ChatPromptTemplate.from_messages([
+    ("system", "You are an expert technical writer. Produce concise, clear summaries without trailing off."),
+    ("human", """Write a concise research summary on: {topic}
+
+Research Material:
+{research}
+
+Format:
+1. Overview (1 concise paragraph)
+2. Key Findings (3 bullet points)
+3. Conclusion (1 short paragraph)
+4. Sources (list of discovered URLs)"""),
+])
+writer_chain_standard = writer_prompt_standard | llm | StrOutputParser()
+
+# Deep Writer (750-1000+ words)
+writer_prompt_deep = ChatPromptTemplate.from_messages([
+    ("system", "You are an elite research scientist. Author thorough, exhaustive, multi-section dossiers."),
+    ("human", """Write an authoritative, in-depth research dossier on: {topic}
+
+Research Material:
 {research}
 
 Requirements:
-- Total length: around 350-450 words.
-- Structure:
-  1. Introduction (1 concise paragraph)
-  2. Key Findings (3 focused bullet points)
-  3. Conclusion (1 short wrap-up paragraph)
-  4. Sources (list of discovered URLs)
+- Length: Extensive (around 750 to 1,000 words).
+- Sections:
+  # Executive Summary & Core Challenge
+  # Key Technical Breakthroughs & Architecture
+  # Empirical Evidence, Benchmarks & Trade-offs
+  # Strategic Impact & 2-5 Year Outlook
+  # Authoritative Sources (Numbered with notes)
 
-Ensure you write the full report all the way to the Sources section without cutting off.""",
-    ),
+Ensure comprehensive technical depth throughout without cutting off."""),
 ])
+writer_chain_deep = writer_prompt_deep | llm | StrOutputParser()
 
-writer_chain = writer_prompt | llm | StrOutputParser()
 
-# 4th component: Critic Chain
-critic_prompt = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        "You are a sharp and constructive research critic. Be honest and specific.",
-    ),
-    (
-        "human",
-        """Review the research report below and evaluate it strictly.
+# --- Critic Chains ---
 
-Report:
+critic_prompt_standard = ChatPromptTemplate.from_messages([
+    ("system", "You are a constructive research critic."),
+    ("human", """Evaluate this brief summary strictly:
 {report}
 
-Respond in this exact format:
-
+Format:
 Score: X/10
-
 Strengths:
 - ...
-- ...
-
 Areas to Improve:
 - ...
-- ...
-
-One line verdict:
-...""",
-    ),
+One line verdict: ..."""),
 ])
+critic_chain_standard = critic_prompt_standard | llm | StrOutputParser()
 
-critic_chain = critic_prompt | llm | StrOutputParser()
+critic_prompt_deep = ChatPromptTemplate.from_messages([
+    ("system", "You are a senior peer-review journal editor. Conduct an exhaustive critical evaluation."),
+    ("human", """Conduct a rigorous peer evaluation of this research dossier:
+{report}
+
+Format:
+### 📊 Overall Score: X/10
+### 🔬 Technical Depth & Rigor
+- (Assess mechanisms, data points, and technical soundness)
+### 💡 Core Strengths
+- ...
+### ⚠️ Potential Gaps or Biases
+- ...
+### 🎯 Final Strategic Verdict
+..."""),
+])
+critic_chain_deep = critic_prompt_deep | llm | StrOutputParser()
