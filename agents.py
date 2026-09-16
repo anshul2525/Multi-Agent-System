@@ -11,7 +11,7 @@ load_dotenv()
 
 # app.py copies st.secrets into os.environ before importing this module,
 # so os.getenv works both locally (.env) and on Streamlit Cloud (st.secrets).
-groq_api_key = os.getenv("GROQ_API_KEY")
+groq_api_key = os.getenv("GROQ_API_KEY").strip()
 
 # Upgraded from openai/gpt-oss-120b (8,000 TPM limit) to llama-3.3-70b-versatile.
 # You can also override this with GROQ_MODEL in your environment/secrets.
