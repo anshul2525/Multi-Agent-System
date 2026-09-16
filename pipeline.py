@@ -130,3 +130,8 @@ def run_research_pipeline(topic: str, deep_mode: bool = False) -> dict:
     print("\n[Step 4 Complete] Peer critique finished.")
 
     return state
+
+
+if __name__ == "__main__":
+    topic_input = input("\nEnter a research topic: ")
+    run_research_pipeline(topic_input, deep_mode=False)
