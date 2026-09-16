@@ -19,23 +19,27 @@ def _get_tavily_client() -> TavilyClient:
 def web_search(query: str) -> str:
     """Search the web for recent and reliable information on a topic. Returns Titles, URLs and snippets."""
     try:
+        print(f"[Search Tool] Querying Tavily for: {query.strip()}")
         tavily = _get_tavily_client()
-        # Limit to 3 results and 180 chars to conserve Groq TPM quota
         results = tavily.search(query=query.strip(), max_results=3)
+        res_list = results.get("results", [])
+        print(f"[Search Tool] Received {len(res_list)} results.")
         out = []
-        for r in results.get("results", []):
+        for r in res_list:
             title = r.get("title", "N/A").strip()
             url = r.get("url", "").strip()
             snippet = r.get("content", "")[:180].strip()
             out.append(f"Title: {title}\nURL: {url}\nSnippet: {snippet}\n")
-        return "\n----\n".join(out) if out else "No relevant search results found."
+        return "\n----\n".join(out) if out else "No search results found. Do not retry calling this tool."
     except Exception as e:
-        return f"Error executing web search: {e}"
+        print(f"[Search Tool] Error during search: {e}")
+        return f"Search failed with error: {e}. Do not retry calling this tool."
 
 
 @tool
 def scrape_urls(urls: list[str]) -> str:
     """Attempt to scrape candidate URLs sequentially until one returns clean text content."""
+    print(f"[Scrape Tool] Scraping candidate URLs: {urls}")
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -54,9 +58,10 @@ def scrape_urls(urls: list[str]) -> str:
             for tag in soup(["script", "style", "nav", "footer", "header", "noscript"]):
                 tag.decompose()
             clean_text = " ".join(soup.stripped_strings)
-            # Capped at 800 chars to avoid TPM spikes
             if len(clean_text) > 150:
+                print(f"[Scrape Tool] Successfully scraped {clean_url}")
                 return f"Source URL: {clean_url}\n\n{clean_text[:800]}"
-        except Exception:
+        except Exception as e:
+            print(f"[Scrape Tool] Failed {clean_url}: {e}")
             continue
-    return "Could not extract content from the provided URLs."
+    return "Could not extract content from the candidate URLs. Do not retry calling this tool."
