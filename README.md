@@ -5,7 +5,7 @@
 **An autonomous AI research pipeline powered by LangChain, Groq, Tavily, and Streamlit.**  
 *Performs live web intelligence gathering, deep DOM scraping, authoritative dossier synthesis, and peer review.*
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://your-demo-url.streamlit.app)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://multi-agent-system-mfx4gvtzf3mht52nthyo4q.streamlit.app/)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![LangChain](https://img.shields.io/badge/LangChain-v0.2%2B-1C3C3C.svg?logo=langchain&logoColor=white)](https://www.langchain.com/)
 [![Groq Fast Inference](https://img.shields.io/badge/Groq-LPU_Accelerated-f55036.svg)](https://groq.com/)
@@ -14,11 +14,11 @@
 
 ---
 
-### 🌐 [**👉 Click Here to Launch the Live Demo 👈**]([https://your-demo-url.streamlit.app](https://multi-agent-system-mfx4gvtzf3mht52nthyo4q.streamlit.app/))
+### 🌐 [**👉 Click Here to Launch the Live Demo 👈**](https://multi-agent-system-mfx4gvtzf3mht52nthyo4q.streamlit.app/)
 
 ---
 
-
+<img src="assets/dashboard_preview.png" alt="Multi-Agent Research System Dashboard" width="900" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.35);"/>
 
 </div>
 
