@@ -32,11 +32,11 @@ try:
 except Exception as e:
     _secrets_error = str(e)
 
-# Surface secrets-loading problems immediately instead of failing later
-# inside agents.py with a confusing GroqError/NameError.
+# Surface secrets-loading problems immediately
 if _secrets_error:
     st.error(f"Could not read st.secrets: {_secrets_error}")
     st.stop()
+
 if "GROQ_API_KEY" not in os.environ:
     st.error(
         "GROQ_API_KEY is missing from Streamlit secrets. "
@@ -72,7 +72,7 @@ def generate_simple_pdf(title: str, report: str, feedback: str) -> bytes | None:
     pdf = DossierPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
-    
+
     effective_width = pdf.w - pdf.l_margin - pdf.r_margin
 
     # Title
@@ -84,20 +84,20 @@ def generate_simple_pdf(title: str, report: str, feedback: str) -> bytes | None:
     # Content
     full_text = f"--- RESEARCH REPORT ---\n\n{report}\n\n--- CRITIC EVALUATION ---\n\n{feedback}"
     pdf.set_font("Helvetica", size=9)
-    
+
     for raw_line in full_text.split("\n"):
         clean_line = raw_line.encode("latin-1", "replace").decode("latin-1")
-        
+
         # Collapse markdown table divider rows
         if set(clean_line.strip()).issubset({"-", "|", " "}) and len(clean_line.strip()) > 3:
             clean_line = "-" * 40
-            
+
         # Break up any continuous string exceeding 75 characters
         words = clean_line.split(" ")
         formatted_words = []
         for word in words:
             if len(word) > 75:
-                chunked = [word[i:i+75] for i in range(0, len(word), 75)]
+                chunked = [word[i : i + 75] for i in range(0, len(word), 75)]
                 formatted_words.append(" ".join(chunked))
             else:
                 formatted_words.append(word)
@@ -180,7 +180,7 @@ if run_clicked:
 
     try:
         status_box.write("Step 1 — Search agent gathering sources via Tavily...")
-        
+
         with contextlib.redirect_stdout(log_buffer):
             result = run_research_pipeline(topic.strip())
 
@@ -234,7 +234,7 @@ if state:
     with tab_report:
         st.markdown(report_text)
         st.divider()
-        
+
         col1, col2, col3 = st.columns([1, 1, 2])
         with col1:
             st.download_button(
