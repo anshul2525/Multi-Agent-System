@@ -9,19 +9,17 @@ from tools import scrape_urls, web_search
 
 load_dotenv()
 
-# app.py copies st.secrets into os.environ before importing this module,
-# so os.getenv works both locally (.env) and on Streamlit Cloud (st.secrets).
-groq_api_key = os.getenv("GROQ_API_KEY").strip()
+# .strip() prevents newline or whitespace breakage from secrets/environment
+groq_api_key = os.getenv("GROQ_API_KEY", "").strip()
 
-# Upgraded from openai/gpt-oss-120b (8,000 TPM limit) to llama-3.3-70b-versatile.
-# You can also override this with GROQ_MODEL in your environment/secrets.
-model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+# Active Groq model (openai/gpt-oss-120b or openai/gpt-oss-20b)
+model_name = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b").strip()
 
 llm = ChatGroq(
     model=model_name,
     temperature=0,
     api_key=groq_api_key,
-    max_retries=0,  # pipeline.py handles custom rate-limit retries
+    max_retries=0,  # pipeline.py manages rate-limit retries explicitly
 )
 
 # 1st agent: Search Agent
@@ -29,7 +27,10 @@ def build_search_agent():
     return create_agent(
         model=llm,
         tools=[web_search],
-        system_prompt="You are a search assistant. Call web_search once to find relevant resources and output the findings with full URLs.",
+        system_prompt=(
+            "You are a search assistant. Call web_search once to find 2-3 reliable resources. "
+            "Output the findings with concise titles and full URLs."
+        ),
     )
 
 # 2nd agent: Reader Agent
@@ -38,8 +39,8 @@ def build_reader_agent():
         model=llm,
         tools=[scrape_urls],
         system_prompt=(
-            "You are a research reader. Call scrape_urls exactly once using a list of 2-3 candidate URLs from the search results. "
-            "Once scraped content is returned, do not invoke any more tools. Immediately summarize the findings and complete your turn."
+            "You are a research reader. Call scrape_urls once with 2 candidate URLs from the search results. "
+            "Once scraped content is returned, do not call any more tools. Summarize key points in 2 paragraphs and finish."
         ),
     )
 
@@ -59,10 +60,10 @@ Research Gathered:
 {research}
 
 Requirements:
-- Total length: around 450-550 words.
+- Total length: around 350-450 words.
 - Structure:
   1. Introduction (1 concise paragraph)
-  2. Key Findings (exactly 3 focused points, use 3-4 sentences per point)
+  2. Key Findings (3 focused bullet points)
   3. Conclusion (1 short wrap-up paragraph)
   4. Sources (list of discovered URLs)
 
