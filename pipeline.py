@@ -31,7 +31,6 @@ def _invoke_with_retry(fn, *args, max_retries: int = 8, **kwargs):
             if attempt == max_retries:
                 raise
             parsed_wait = _wait_seconds_from_error(e)
-            # Add safety buffer to let Groq's rolling 60s window clear tokens
             wait = parsed_wait + 3.0
             print(
                 f"Rate limited by Groq (attempt {attempt}/{max_retries}). "
@@ -42,7 +41,7 @@ def _invoke_with_retry(fn, *args, max_retries: int = 8, **kwargs):
 
 def run_research_pipeline(topic: str) -> dict:
     state = {}
-    config = {"recursion_limit": 10}
+    config = {"recursion_limit": 15}
 
     # Step 1: Search Agent
     print("\n" + "=" * 50)
@@ -52,13 +51,20 @@ def run_research_pipeline(topic: str) -> dict:
     search_agent = build_search_agent()
     search_result = _invoke_with_retry(
         search_agent.invoke,
-        {"messages": [("user", f"Find recent, reliable information about: {topic}")]},
+        {
+            "messages": [
+                (
+                    "user",
+                    f"Call web_search once to find information about: {topic}. Then output the findings.",
+                )
+            ]
+        },
         config=config,
     )
     state["search_results"] = search_result["messages"][-1].content
     print("\nSearch Results:\n", state["search_results"])
 
-    # Cooldown pause: gives token bucket ~800 tokens of headroom
+    # Cooldown pause: allows rolling TPM window to replenish
     print("\nPacing cooldown (6s)...")
     time.sleep(6)
 
@@ -67,7 +73,6 @@ def run_research_pipeline(topic: str) -> dict:
     print("Step 2 - Reader agent is scraping top resources...")
     print("=" * 50)
 
-    # Trim search results passed to Reader Agent to avoid ballooning input tokens
     search_context_trimmed = state["search_results"][:800]
 
     reader_agent = build_reader_agent()
@@ -77,7 +82,7 @@ def run_research_pipeline(topic: str) -> dict:
             "messages": [
                 (
                     "user",
-                    f"From these search results, pick 2 relevant URLs and scrape them:\n\n{search_context_trimmed}",
+                    f"From these search results, call scrape_urls once for 2 URLs and summarize findings:\n\n{search_context_trimmed}",
                 )
             ]
         },
