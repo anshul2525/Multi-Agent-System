@@ -14,11 +14,11 @@
 
 ---
 
-### 🌐 [**👉 Click Here to Launch the Live Demo 👈**](https://your-demo-url.streamlit.app)
+### 🌐 [**👉 Click Here to Launch the Live Demo 👈**]([https://your-demo-url.streamlit.app](https://multi-agent-system-mfx4gvtzf3mht52nthyo4q.streamlit.app/))
 
 ---
 
-<img src="assets/dashboard_preview.png" alt="Multi-Agent Research System Dashboard" width="900" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.35);"/>
+
 
 </div>
 
