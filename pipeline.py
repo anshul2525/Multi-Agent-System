@@ -23,14 +23,17 @@ def _wait_seconds_from_error(exc: Exception, default: float = 15.0) -> float:
 
 def _invoke_with_retry(fn, *args, max_retries: int = 6, **kwargs):
     """Call fn(*args, **kwargs), automatically waiting and retrying on Groq
-    rate-limit (429) errors, using the wait time Groq itself reports."""
+    rate-limit (429) errors, using the wait time Groq reports plus backoff buffer."""
     for attempt in range(1, max_retries + 1):
         try:
             return fn(*args, **kwargs)
         except RateLimitError as e:
             if attempt == max_retries:
                 raise
-            wait = _wait_seconds_from_error(e) + 3.0  # safety buffer
+            parsed_wait = _wait_seconds_from_error(e)
+            # Add progressive buffer (min 5s, scaling with attempt count)
+            # to let rolling 60-second token windows drain properly.
+            wait = max(parsed_wait + 3.0, attempt * 5.0)
             print(
                 f"Rate limited by Groq (attempt {attempt}/{max_retries}). "
                 f"Waiting {wait:.1f}s before retrying..."
@@ -56,10 +59,16 @@ def run_research_pipeline(topic: str) -> dict:
     state["search_results"] = search_result["messages"][-1].content
     print("\nSearch Results:\n", state["search_results"])
 
+    # Pacing pause to prevent burst TPM exhaustion
+    time.sleep(3)
+
     # Step 2: Reader Agent
     print("\n" + "=" * 50)
     print("Step 2 - Reader agent is scraping top resources...")
     print("=" * 50)
+
+    # Limit search results context to 1,200 chars to avoid spiking Step 2 input tokens
+    search_context_trimmed = state["search_results"][:1200]
 
     reader_agent = build_reader_agent()
     reader_result = _invoke_with_retry(
@@ -68,7 +77,7 @@ def run_research_pipeline(topic: str) -> dict:
             "messages": [
                 (
                     "user",
-                    f"From the search results below, pick the 2 to 3 most relevant URLs and scrape them:\n\n{state['search_results']}",
+                    f"From the search results below, pick the 2 to 3 most relevant URLs and scrape them:\n\n{search_context_trimmed}",
                 )
             ]
         },
@@ -76,6 +85,9 @@ def run_research_pipeline(topic: str) -> dict:
     )
     state["scraped_content"] = reader_result["messages"][-1].content
     print("\nScraped Content:\n", state["scraped_content"])
+
+    # Pacing pause
+    time.sleep(3)
 
     # Step 3: Writer Chain
     print("\n" + "=" * 50)
@@ -96,6 +108,9 @@ def run_research_pipeline(topic: str) -> dict:
     )
     state["report"] = _extract_content(writer_output)
     print("\nFinal Report:\n", state["report"])
+
+    # Pacing pause
+    time.sleep(2)
 
     # Step 4: Critic Report
     print("\n" + "=" * 50)
