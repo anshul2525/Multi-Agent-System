@@ -9,7 +9,7 @@ load_dotenv()
 
 
 def _get_tavily_client() -> TavilyClient:
-    api_key = os.getenv("TAVILY_API_KEY")
+    api_key = os.getenv("TAVILY_API_KEY").strip()
     if not api_key:
         raise ValueError("TAVILY_API_KEY environment variable is missing.")
     return TavilyClient(api_key=api_key)
